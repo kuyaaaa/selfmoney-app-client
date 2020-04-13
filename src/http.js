@@ -44,7 +44,6 @@ axios.interceptors.response.use(
   error => {
     // 错误提醒
     endLoading()
-    console.log(error.response.data)
 
     // 获取错误状态码
     const { status } = error.response
@@ -54,6 +53,8 @@ axios.interceptors.response.use(
       localStorage.removeItem('smToken')
       // 跳转到登录页面
       router.push('/login')
+    } else {
+      Message.error(error.response.data)
     }
     return Promise.reject(error)
   }
