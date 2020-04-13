@@ -1,5 +1,5 @@
 <template>
-  <div class="register">
+  <div class="login">
     <!-- 文本 -->
     <div class="text">
       <p class="title">个人账本</p>
@@ -8,31 +8,31 @@
     <!-- 注册表单 -->
     <div class="form_container">
       <p class="formtitle">
-        <i class="el-icon-user"></i> 用户注册
+        <i class="el-icon-user"></i> 用户登录
       </p>
       <el-form
-        :model="registerUser"
+        :model="loginUser"
         status-icon
-        :rules="registerRules"
-        ref="registerForm"
+        :rules="loginRules"
+        ref="loginForm"
         label-width="100px"
-        class="registerform"
+        class="loginform"
       >
-        <el-form-item label="用户名" prop="name">
-          <el-input v-model="registerUser.name" placeholder="请输入用户名"></el-input>
-        </el-form-item>
         <el-form-item label="邮箱" prop="email">
-          <el-input v-model="registerUser.email" placeholder="请输入邮箱"></el-input>
+          <el-input v-model="loginUser.email" placeholder="请输入邮箱"></el-input>
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input type="password" v-model="registerUser.password" placeholder="请输入密码"></el-input>
+          <el-input type="password" v-model="loginUser.password" placeholder="请输入密码"></el-input>
         </el-form-item>
-        <el-form-item label="确认密码" prop="checkPassword">
-          <el-input type="password" v-model="registerUser.checkPassword" placeholder="请确认密码"></el-input>
-        </el-form-item>
+        <div>
+          <p class="register">
+            还没有账号？现在
+            <router-link to="/register">注册</router-link>
+          </p>
+        </div>
         <el-form-item>
-          <el-button type="info" @click="submitForm('registerForm')">
-            注册
+          <el-button type="info" @click="submitForm('loginForm')">
+            登录
             <i class="el-icon-thumb el-icon--right"></i>
           </el-button>
         </el-form-item>
@@ -42,10 +42,12 @@
 </template>
 
 <script>
+import jwt_decode from "jwt-decode";
+
 export default {
   data() {
     const validatePass = (rule, value, callback) => {
-      if (value !== this.registerUser.password) {
+      if (value !== this.loginUser.password) {
         callback(new Error("两次输入密码不一致!"));
       } else {
         callback();
@@ -53,22 +55,11 @@ export default {
     };
 
     return {
-      registerUser: {
-        name: "",
+      loginUser: {
         email: "",
-        password: "",
-        checkPassword: ""
+        password: ""
       },
-      registerRules: {
-        name: [
-          { required: true, message: "用户名不能为空！", trigger: "blur" },
-          {
-            min: 2,
-            max: 8,
-            message: "用户名长度在2-8个字符之间！",
-            trigger: "blur"
-          }
-        ],
+      loginRules: {
         email: [
           { required: true, message: "邮箱不能为空！", trigger: "blur" },
           { type: "email", message: "邮箱格式不正确！", trigger: "blur" }
@@ -81,16 +72,6 @@ export default {
             message: "密码长度在6-12个字符之间！",
             trigger: "blur"
           }
-        ],
-        checkPassword: [
-          { required: true, message: "确认密码不能为空！", trigger: "blur" },
-          {
-            min: 6,
-            max: 12,
-            message: "密码长度在6-12个字符之间！",
-            trigger: "blur"
-          },
-          { validator: validatePass, trigger: "blur" }
         ]
       }
     };
@@ -99,32 +80,47 @@ export default {
     submitForm(formName) {
       this.$refs[formName].validate(valid => {
         if (valid) {
-          this.$http
-            .post("/api/users/register", this.registerUser)
-            .then(res => {
-              // 用户注册
-              this.$message({
-                message: "账号注册成功！",
-                type: "success"
-              });
-              this.$router.push("/login");
-            });
+          this.$http.post("/api/users/login", this.loginUser).then(res => {
+            // console.log(res)
+            // token
+            const { token } = res.data;
+            // 存储到ls
+            localStorage.setItem("smToken", token);
+
+            // 解析token
+            const decoded = jwt_decode(token);
+            // console.log(decoded)
+            // token存储到vuex中
+            this.$store.dispatch("setAuthenticated", !this.isEmpty(decoded));
+            this.$store.dispatch("setUser", decoded);
+
+            this.$router.push("/index");
+          });
         }
       });
+    },
+
+    isEmpty(val) {
+      return (
+        val === undefined ||
+        val === null ||
+        (typeof val === "object" && Object.keys(val).length === 0) ||
+        (typeof val === "string" && val.trim().length === 0)
+      );
     }
   }
 };
 </script>
 
 <style scoped>
-.register {
+.login {
   width: 100%;
   height: 100%;
   background-image: url("../assets/login-bg.jpg");
   background-repeat: no-repeat;
   background-size: cover;
 }
-.register::after {
+.login::after {
   content: "";
   position: absolute;
   width: 100%;
@@ -134,7 +130,7 @@ export default {
   z-index: 1;
   background-color: rgba(0, 0, 0, 0.4);
 }
-.register .text {
+.login .text {
   color: #fff;
   position: absolute;
   top: 150px;
@@ -165,17 +161,22 @@ export default {
   text-align: center;
   margin: 40px 0;
 }
-.registerform {
+.loginform {
   width: 350px;
   text-align: center;
 }
 .el-button {
-  width: 200px;
+  width: 100%;
   margin: 20px 0;
   background-color: #444;
   border: none;
 }
 .el-button:hover {
   background-color: rgb(255, 186, 57);
+}
+.register {
+  text-align: right;
+  font-size: 14px;
+  margin-bottom: 10px;
 }
 </style>
